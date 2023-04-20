@@ -1,19 +1,29 @@
 from operator import contains
 from models import *
+from peewee import DoesNotExist
 
 __winc_id__ = "d7b474e9b3a54d23bca54879a4f1855b"
 __human_name__ = "Betsy Webshop"
  
 
 def search(term):
-    products = []
-    if not term:
-        print('No term supplied')
-    term = term.lower()
-    query = (Product.select()
-             .where(fn.LOWER(Product.name).contains(term.lower()) or fn.LOWER(Product.description).contains(term.lower())))
-    products = [prod for prod in query]
-    return products
+    while True:
+
+        try:    
+            products = []
+            term = term.lower()
+            query = (Product.select()
+                    .where(fn.LOWER(Product.name).contains(term.lower()) or fn.LOWER(Product.description).contains(term.lower())))
+            products = [prod for prod in query]
+            if not products:
+                return print(f'{term} was not found!') 
+            else:
+                return products
+        except ValueError:
+            print('No term supplied')
+
+    
+    
 
 
 def list_user_products(user):
@@ -28,23 +38,21 @@ def list_products_per_tag(tag):
     tag_products = []
     query = (Product.select()
              .join(Tags, on=(Product.id == Tags.id))
-             .where(Tags.name == tag))
+             .where(fn.LOWER(Product.name).contains(fn.LOWER(tag))))
     tag_products = [prod for prod in query]
     return tag_products
 
 
 def add_product_to_catalog(user_id, product):
-    query = (User.select()
-             .join(Product())
-             .where(User.id == user_id)
-            )
-    query.insert(product) # NOPE
-    query = (User.select()
-             .join(Product())
-             .where(User.id == user_id)
-            )
-    new_prod_list = [prod for prod in query]
-    return print(new_prod_list)    
+    # query = (User.select()
+    #          .where(User.id == user_id))
+    # new_prod = query.insert(product)
+    # new_prod.execute()
+    # new_prod = new_prod.update(new_prod.owner == user_id)
+    query = (Product.create(product))
+    # query.update(query.owner == user_id)
+    # query.execute()
+    return print(f'Product with {product.name} added to catalog')
 
 
 def update_stock(product_id, new_quantity):
@@ -52,19 +60,26 @@ def update_stock(product_id, new_quantity):
 
 
 def purchase_product(product_id, buyer_id, quantity):
-    ...
+    query = (Product.update()
+             .join(User, on=(Product.owner == User.id))
+             .where(Product.id == product_id and User.id == buyer_id))
+    ## Nope
 
 
 def remove_product(product_id):
-    ...
+    query = (Product.delete()
+             .where(Product.id == product_id))
+    query.execute()
+
+    return print(f'Product with ID {product_id} removed')
 
 def populate_test_database():
     #Tags
+    fridge = Tags(name = 'fridge')
     small = Tags(name = 'small')
     large = Tags(name = 'large')
     white = Tags(name = 'white')
     black = Tags(name = 'black')
-    fridge = Tags(name = 'fridge')
     small.save()
     large.save()
     white.save()
@@ -88,10 +103,10 @@ def populate_test_database():
     large_black_fridge.tags = [large, black, fridge]
     large_black_fridge.save()
 
-    small_black_fridge = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=3)
-    small_black_fridge.save()
-    small_black_fridge.tags = [small, black, fridge]
-    small_black_fridge.save()
+    # small_black_fridge = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=3)
+    # small_black_fridge.save()
+    # small_black_fridge.tags = [small, black, fridge]
+    # small_black_fridge.save()
 
     # small_black_fridge = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=5, tags=['small', 'black', 'fridge'])
     # small_black_fridge.save()
@@ -106,9 +121,13 @@ def populate_test_database():
 populate_test_database()
 
 user1 = User.select().where(User.name == 'Jasper').first()
-tag1 = Tags.select().where(Tags.name == 'fridge').first()
-prod1 = Product.select().where(Product.name == 'small_black_fridge').first()
-#print(search('Fridge'))
+tag1 = 'fRidge'
+prod1 = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=3)
+prod2 = Product.select().where(Product.name == 'large_black_fridge').first()
+print(search())
 #print(list_user_products(user1))
 #print(list_products_per_tag(tag1))
-print(add_product_to_catalog(user1, prod1))
+#print(add_product_to_catalog(user1.id, prod1))
+#print(update_stock(prod1.id, 2))
+#print(purchase_product(prod2.id, user1.id, 1))
+#print(remove_product(prod1.id))
