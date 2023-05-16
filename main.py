@@ -53,14 +53,30 @@ def add_product_to_catalog(user_id: int, product: Product):
 
 
 def update_stock(product_id, new_quantity):
-    ...
-
+    if product_id is None or (Product.select().where(Product.id == product_id).first()) is None:
+        return 'That product ID is not valid'
+    query = (Product.update(qty_in_stock = new_quantity)
+             .where(Product.id == product_id))
+    query.execute()
+    return f'Product with ID {product_id} has now {new_quantity} in stock'
 
 def purchase_product(product_id, buyer_id, quantity):
-    query = (Product.update()
-             .join(User, on=(Product.owner == User.id))
-             .where(Product.id == product_id and User.id == buyer_id))
-    ## Nope
+    if product_id is None or (Product.select().where(Product.id == product_id).first()) is None:
+        return 'That product ID is not valid'
+    elif quantity > (Product.select(Product.qty_in_stock).where(Product.id == product_id).first()):
+        return f'Not enough in stock'
+    else:
+        new_qty_in_stock = (Product.select(Product.qty_in_stock).where(Product.id == product_id).first()) - quantity
+        query = (Product.update(qty_in_stock = new_qty_in_stock)
+             .where(Product.id == product_id))
+        query.execute()
+        buy_query = (Product.select()
+                     .where(Product.owner == buyer_id))
+        buy_query = (Product.update(qty_in_stock =+ quantity)
+             .where(Product.id == product_id))   
+        buy_query.execute()     
+        return f'{quantity} of product with ID {product_id} sold to buyer with ID {buyer_id}'
+    
 
 
 def remove_product(product_id):
@@ -130,6 +146,6 @@ prod3 = Product(name='small_black_fridge', description='small black fridge', pri
 #list_products_per_tag(tag1)
 #add_product_to_catalog(1, prod3)
 #print(update_stock(prod1.id, 2))
-#print(purchase_product(prod2.id, user1.id, 1))
+print(purchase_product(prod2.id, user1.id, 1))
 #print(remove_product(prod1.id))
 #remove_product(5)
