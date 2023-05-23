@@ -32,6 +32,7 @@ class Product(BaseModel):
 class Transaction(BaseModel):
     id = IntegerField(primary_key=True)
     product = ForeignKeyField(Product, backref="transactions")
+    buyer = ForeignKeyField(User)
     price_per_unit = IntegerField()
     qty_sold = IntegerField()
 

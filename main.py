@@ -5,87 +5,90 @@ __winc_id__ = "d7b474e9b3a54d23bca54879a4f1855b"
 __human_name__ = "Betsy Webshop"
 
 
-def search(term):
+def search(term) -> list:
     products = []
     term = term.lower()
     query = (Product.select()
-            .where(fn.LOWER(Product.name).contains(term.lower()) or fn.LOWER(Product.description).contains(term.lower())))
+            .where(fn.LOWER(Product.name).contains(term) or fn.LOWER(Product.description).contains(term)))
     products = [prod for prod in query]
     if not products:
         print(f'{term} was not found!')
     return products
 
 
-def list_user_products(user):
+def list_user_products(user) -> list:
     if user is None:
-        return print(f'User was not found!')
+        return f'User was not found!'
     user_products = []
     query = (Product.select()
             .where(Product.owner == user))
     user_products = [prod for prod in query]
-    if user_products:
-        return print(user_products)
-    return print(f'No products found for {user.name}')
+    if not user_products:
+        print(f'No products found for {user.name}')
+    return user_products
+    
 
-
-def list_products_per_tag(tag):
+def list_products_per_tag(tag) -> list:
     tag_products = []
     query = (Product.select()
              .join(Tags, on=(Product.id == Tags.id))
              .where(fn.LOWER(Product.name).contains(fn.LOWER(tag))))
-    tag_products = [prod for prod in query]
-    if tag_products:
-        return print(tag_products)
-    return print(f'No products with the name {tag} found')
+    tag_products = [prod.name for prod in query]
+    if not tag_products:
+        print(f'No products with the name {tag} found')
+    return tag_products
 
 
-def add_product_to_catalog(user_id: int, product: Product):
-    user = (User.select()
-            .where(User.id == user_id).first())
-    if user:
-        product.owner = user
-        product.save()
-        print(f'Product with {product.name} added to catalog of {user.name}')
-        return True
-    else:
-        print(f'{user_id} does not exist')
-        return False
+def add_product_to_catalog(user_id: int, product) -> str:
+    try:
+        user = User.get_by_id(user_id)
+    except DoesNotExist:
+        return f'That user is not valid'
+    product.owner = user
+    product.save()
+    return f'Product with {product.name} added to catalog of {user.name}'
 
 
-def update_stock(product_id, new_quantity):
-    if product_id is None or (Product.select().where(Product.id == product_id).first()) is None:
-        return 'That product ID is not valid'
-    query = (Product.update(qty_in_stock = new_quantity)
-             .where(Product.id == product_id))
-    query.execute()
+def update_stock(product_id, new_quantity) -> str:
+    try:
+        product = Product.get_by_id(product_id)
+    except DoesNotExist:
+        return f'That product ID is not valid'
+    product.qty_in_stock = new_quantity
+    product.save()
     return f'Product with ID {product_id} has now {new_quantity} in stock'
 
-def purchase_product(product_id, buyer_id, quantity):
-    if product_id is None or (Product.select().where(Product.id == product_id).first()) is None:
-        return 'That product ID is not valid'
-    elif quantity > (Product.select(Product.qty_in_stock).where(Product.id == product_id).first()):
+
+def purchase_product(product_id, buyer_id, quantity) -> str:
+    try:
+        product = Product.get_by_id(product_id)
+    except DoesNotExist:
+        return f'Product does not exist'
+    if quantity > product.qty_in_stock:
         return f'Not enough in stock'
-    else:
-        new_qty_in_stock = (Product.select(Product.qty_in_stock).where(Product.id == product_id).first()) - quantity
-        query = (Product.update(qty_in_stock = new_qty_in_stock)
-             .where(Product.id == product_id))
-        query.execute()
-        buy_query = (Product.select()
-                     .where(Product.owner == buyer_id))
-        buy_query = (Product.update(qty_in_stock =+ quantity)
-             .where(Product.id == product_id))   
-        buy_query.execute()     
-        return f'{quantity} of product with ID {product_id} sold to buyer with ID {buyer_id}'
-    
+    try:
+        buyer = User.get_by_id(buyer_id)
+    except DoesNotExist:
+        return f'User does not exist'
+    product.qty_in_stock -= quantity
+    product.save()
+    transaction = Transaction()
+    transaction.product = product
+    transaction.buyer = buyer
+    transaction.price_per_unit = product.price_per_unit
+    transaction.qty_sold = quantity
+    transaction.save()
+    tot_price = transaction.price_per_unit * transaction.qty_sold
+    return f'{quantity} of {product.name} sold to {buyer.name} for {tot_price}'
 
 
-def remove_product(product_id):
-    if product_id is None or (Product.select().where(Product.id == product_id).first()) is None:
+def remove_product(product_id) -> str:
+    try:
+        product = Product.get_by_id(product_id)
+    except DoesNotExist:
         return 'That product ID is not valid'
-    query = (Product.delete()
-             .where(Product.id == product_id))
-    query.execute()
-    return f'Product with ID {product_id} removed'
+    product.delete()
+    return f'Product with ID {product_id} removed'    
 
 
 def populate_test_database():
@@ -120,18 +123,6 @@ def populate_test_database():
     large_black_fridge.tags = [large, black, fridge]
     large_black_fridge.save()
 
-    # small_black_fridge = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=3)
-    # small_black_fridge.save()
-    # small_black_fridge.tags = [small, black, fridge]
-    # small_black_fridge.save()
-
-    # small_black_fridge = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=5, tags=['small', 'black', 'fridge'])
-    # small_black_fridge.save()
-    # large_white_fridge = Product(name='large_white_fridge', description='large white fridge', price_per_unit=18, qty_in_stock=5, tags=['large', 'white', 'fridge'])
-    # large_white_fridge.save()
-    # large_black_fridge = Product(name='large_black_fridge', description='large black fridge', price_per_unit=19, qty_in_stock=5, tags=['large', 'black', 'fridge'])
-    # large_black_fridge.save()
-
 
 populate_test_database()
 
@@ -141,11 +132,15 @@ tag1 = 'fRidge'
 prod1 = Product.select().where(Product.name == 'small_white_fridge').first()
 prod2 = Product.select().where(Product.name == 'large_black_fridge').first()
 prod3 = Product(name='small_black_fridge', description='small black fridge', price_per_unit=11, qty_in_stock=3)
-#search('fridgsde')
-#list_user_products(user3)
-#list_products_per_tag(tag1)
-#add_product_to_catalog(1, prod3)
-#print(update_stock(prod1.id, 2))
-print(purchase_product(prod2.id, user1.id, 1))
-#print(remove_product(prod1.id))
-#remove_product(5)
+
+print(search('fridgsde'))
+# print(list_user_products(user3))
+# print(list_products_per_tag(tag1))
+# print(add_product_to_catalog(1, prod3))
+# print(update_stock(prod1.id, 2))
+# print(purchase_product(prod2.id, user1.id, 1))
+# print(purchase_product(None, user1.id, 1))
+# print(purchase_product(prod2.id, 12, 1))
+# print(purchase_product(prod2.id, user1.id, 3456))
+# print(remove_product(prod1.id))
+# print(remove_product(5))
