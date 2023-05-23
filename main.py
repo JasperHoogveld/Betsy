@@ -39,7 +39,7 @@ def list_products_per_tag(tag) -> list:
     return tag_products
 
 
-def add_product_to_catalog(user_id: int, product) -> str:
+def add_product_to_catalog(user_id, product) -> str:
     try:
         user = User.get_by_id(user_id)
     except DoesNotExist:
